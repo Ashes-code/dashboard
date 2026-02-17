@@ -18,7 +18,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
           <Menu className="w-6 h-6" />
         </button>
         <h2 className="text-base md:text-lg text-gray-300 font-medium">
-          Hello, melas nwa 👋
+          Hello, melas
         </h2>
       </div>
       <div className="flex items-center max-w-[60%] sm:max-w-none space-x-3 sm:space-x-4 bg-white/5 px-3 sm:px-4 py-1.5 rounded-full cursor-pointer hover:bg-white/10 transition-colors">
