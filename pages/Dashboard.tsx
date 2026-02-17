@@ -44,7 +44,7 @@ type DashboardApi = {
   };
 };
 
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://afrivacx-backend-1.onrender.com/api/admin/admin/dashboard';
+const API_URL = (import.meta as any).env?.VITE_API_URL;
 
 const roleToUserType = (role: string): UserType =>
   role.toLowerCase() === 'pharmacy' ? UserType.Pharmacy : UserType.Patient;
