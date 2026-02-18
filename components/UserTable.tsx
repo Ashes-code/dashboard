@@ -6,9 +6,10 @@ interface UserTableProps {
   title: string;
   users: UserRecord[];
   showOperation?: boolean;
+  onView?: (user: UserRecord) => void;
 }
 
-const UserTable: React.FC<UserTableProps> = ({ title, users, showOperation = true }) => {
+const UserTable: React.FC<UserTableProps> = ({ title, users, showOperation = true, onView }) => {
   const getTypeColor = (type: UserType) => {
     switch (type) {
       case UserType.Patient:
@@ -32,12 +33,12 @@ const UserTable: React.FC<UserTableProps> = ({ title, users, showOperation = tru
   };
 
   return (
-    <div className="bg-[#18181b] p-6 rounded-2xl border border-white/5 overflow-x-auto">
+    <div className="bg-[#18181b] p-4 rounded-2xl border border-white/5 overflow-x-auto">
       <h3 className="text-gray-300 text-lg font-medium mb-6">{title}</h3>
       <table className="w-full text-left">
         <thead>
           <tr className="text-gray-500 text-xs uppercase tracking-wider border-b border-white/5">
-            <th className="pb-4 font-semibold">Full Name</th>
+            <th className="pb-4 font-semibold text-xs">Full Name</th>
             <th className="pb-4 font-semibold">User Type</th>
             {showOperation && <th className="pb-4 font-semibold">E-mail</th>}
             <th className="pb-4 font-semibold">{showOperation ? 'Registration Date' : 'Create Date'}</th>
@@ -69,7 +70,12 @@ const UserTable: React.FC<UserTableProps> = ({ title, users, showOperation = tru
               {showOperation && (
                 <td className="py-4">
                   <div className="flex space-x-3 text-xs font-medium">
-                    <button className="text-emerald-500 hover:underline">View</button>
+                    <button
+                      className="text-emerald-500 hover:underline"
+                      onClick={() => onView && onView(user)}
+                    >
+                      View
+                    </button>
                     <button className="text-rose-500 hover:underline">Delete</button>
                   </div>
                 </td>

@@ -5,6 +5,7 @@ import TopBar from '../components/TopBar';
 import StatCard from '../components/StatCard';
 import UserTable from '../components/UserTable';
 import VaccineTrends from '../components/VaccineTrends';
+import UserModal from '../components/UserModal';
 import { Status, UserRecord, UserType, StatData } from '../types';
 import { Users, MessageCircle, Heart, Bell } from 'lucide-react';
 
@@ -63,6 +64,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [detailOpen, setDetailOpen] = useState<boolean>(false);
+  const [detailLoading, setDetailLoading] = useState<boolean>(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailData, setDetailData] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -158,6 +163,61 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     };
   }, []);
 
+  const USER_DETAIL_URLS_RAW =
+    ((import.meta as any).env?.VITE_USER_DETAIL_URLS as string | undefined) ??
+    ((import.meta as any).env?.VITE_USER_DETAIL_URL as string | undefined) ??
+    '';
+
+  const USER_DETAIL_BUILDERS: Array<(id: string) => string> = USER_DETAIL_URLS_RAW
+    ? USER_DETAIL_URLS_RAW.split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((tpl) => (id: string) =>
+          tpl.includes(':id')
+            ? tpl.replace(':id', encodeURIComponent(id))
+            : `${tpl.replace(/\/+$/, '')}/${encodeURIComponent(id)}`
+        )
+    : [];
+
+  const openUserDetail = async (user: UserRecord) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailError(null);
+    setDetailData(null);
+    const baseDetails: Record<string, any> = {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      userType: user.userType,
+      status: user.status,
+      registrationDate: user.registrationDate,
+    };
+    try {
+      let fetched: any | null = null;
+      if (USER_DETAIL_BUILDERS.length > 0) {
+        for (const build of USER_DETAIL_BUILDERS) {
+          try {
+            const url = build(user.id);
+            const res = await fetch(url, { headers: { Accept: 'application/json' } });
+            if (res.ok) {
+              const j = await res.json();
+              fetched = j?.data ?? j;
+              break;
+            }
+          } catch {
+            // try next candidate
+          }
+        }
+      }
+      setDetailData({ ...baseDetails, ...(fetched || {}) });
+    } catch (e: any) {
+      setDetailError(e?.message ?? 'Failed to load user details');
+      setDetailData(baseDetails);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const content = useMemo(() => {
     if (loading) {
       return (
@@ -176,7 +236,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       );
     }
     return (
-      <main className="flex-1 p-4 md:p-8 lg:ml-64">
+      <main className="flex-1 p-4 lg:p-6 lg:ml-64">
         <TopBar onMenuClick={() => setSidebarOpen(true)} />
         
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -189,7 +249,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           <div className="lg:col-span-2 space-y-8">
             <UserTable 
               title="Latest Users"
-              users={latestUsers} 
+              users={latestUsers}
+              onView={openUserDetail}
               showOperation={true}
             />
             <UserTable 
@@ -215,6 +276,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         onClick={() => setSidebarOpen(false)}
       />
       {content}
+      <UserModal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        loading={detailLoading}
+        error={detailError}
+        details={detailData}
+        title="User Details"
+      />
     </div>
   );
 };
