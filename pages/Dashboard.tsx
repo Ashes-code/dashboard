@@ -6,6 +6,7 @@ import StatCard from '../components/StatCard';
 import UserTable from '../components/UserTable';
 import VaccineTrends from '../components/VaccineTrends';
 import UserModal from '../components/UserModal';
+import UsersModal, { SimpleUser } from '../components/UsersModal';
 import { Status, UserRecord, UserType, StatData } from '../types';
 import { Users, MessageCircle, Heart, Bell } from 'lucide-react';
 
@@ -46,6 +47,10 @@ type DashboardApi = {
 };
 
 const API_URL = (import.meta as any).env?.VITE_API_URL;
+const USERS_LIST_URL =
+  ((import.meta as any).env?.VITE_USERS_LIST_URL as string | undefined) ??
+  ((import.meta as any).env?.VITE_ALL_USERS as string | undefined) ??
+  ((import.meta as any).env?.VITE_USERS_URL as string | undefined);
 
 const roleToUserType = (role: string): UserType =>
   role.toLowerCase() === 'pharmacy' ? UserType.Pharmacy : UserType.Patient;
@@ -68,6 +73,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailData, setDetailData] = useState<Record<string, any> | null>(null);
+  const [usersOpen, setUsersOpen] = useState<boolean>(false);
+  const [usersLoading, setUsersLoading] = useState<boolean>(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [usersList, setUsersList] = useState<SimpleUser[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -218,6 +227,40 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     }
   };
 
+  const fetchAllUsers = async () => {
+    setUsersOpen(true);
+    setUsersLoading(true);
+    setUsersError(null);
+    setUsersList([]);
+    try {
+      if (!USERS_LIST_URL) throw new Error('Users list endpoint not configured');
+      const res = await fetch(USERS_LIST_URL, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
+      const data = await res.json();
+      const list: any[] = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.users) ? data.users : [];
+      const mapped: SimpleUser[] = list.map((u: any) => {
+        const name = u.fullName || u.name || (typeof u.firstName === 'string' || typeof u.lastName === 'string'
+          ? [u.firstName, u.lastName].filter(Boolean).join(' ')
+          : (u.email?.split('@')[0] || 'Unknown'));
+        const role = (u.role || u.userType || '').toString().toLowerCase();
+        const userType: UserType = role === 'pharmacy' ? UserType.Pharmacy : UserType.Patient;
+        const profileStatus = u.accountStatus || u.profileStatus || u.status || 'unknown';
+        return {
+          id: u.id || u._id || `${u.email}-${u.role || ''}`,
+          name,
+          email: u.email || 'N/A',
+          userType,
+          profileStatus,
+        };
+      });
+      setUsersList(mapped);
+    } catch (e: any) {
+      setUsersError(e?.message ?? 'Failed to load users');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   const content = useMemo(() => {
     if (loading) {
       return (
@@ -270,7 +313,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
 
   return (
     <div className="flex min-h-screen bg-[#0c0c0e]">
-      <Sidebar onLogout={onLogout} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar onLogout={onLogout} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onUsersClick={fetchAllUsers} />
       <div
         className={`fixed inset-0 bg-black/50 md:hidden transition-opacity ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setSidebarOpen(false)}
@@ -282,7 +325,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         loading={detailLoading}
         error={detailError}
         details={detailData}
+        omitKeys={[
+          'createdAt',
+          'deletedAt',
+          'updatedAt',
+          'id',
+          'passwordResetVerified',
+          'emailVerificationExpires',
+          'passwordResetExpires',
+        ]}
         title="User Details"
+      />
+      <UsersModal
+        open={usersOpen}
+        onClose={() => setUsersOpen(false)}
+        loading={usersLoading}
+        error={usersError}
+        users={usersList}
       />
     </div>
   );

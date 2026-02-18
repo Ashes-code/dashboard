@@ -9,6 +9,7 @@ interface UserModalProps {
   error?: string | null;
   details?: UserDetails | null;
   title?: string;
+  omitKeys?: string[];
 }
 
 const formatKey = (key: string) =>
@@ -40,7 +41,20 @@ const renderValue = (value: any) => {
   return <span className="text-gray-300">{String(value)}</span>;
 };
 
-const UserModal: React.FC<UserModalProps> = ({ open, onClose, loading, error, details, title = 'User Details' }) => {
+const normalize = (k: string) => k.replace(/[^a-z]/gi, '').toLowerCase();
+const DEFAULT_OMIT = new Set([
+  'createdat',
+  'deletedat',
+  'updatedat',
+  'id',
+  'passwordresetverified',
+  'emailverificationexpires',
+  'passwordresetexpires',
+]);
+
+const UserModal: React.FC<UserModalProps> = ({ open, onClose, loading, error, details, title = 'User Details', omitKeys }) => {
+  const omit = new Set([...(omitKeys?.map(normalize) ?? []), ...DEFAULT_OMIT]);
+  const entries = details ? Object.entries(details).filter(([k]) => !omit.has(normalize(k))) : [];
   return (
     <div className={`fixed inset-0 z-[60] ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity`}>
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
@@ -55,7 +69,7 @@ const UserModal: React.FC<UserModalProps> = ({ open, onClose, loading, error, de
             {!loading && error && <div className="text-red-400">{error}</div>}
             {!loading && !error && details && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(details).map(([k, v]) => (
+                {entries.map(([k, v]) => (
                   <div key={k} className="bg-white/5 rounded-lg p-3 border border-white/10">
                     <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">{formatKey(k)}</div>
                     <div className="text-sm">{renderValue(v)}</div>
